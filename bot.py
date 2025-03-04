@@ -7,7 +7,7 @@ import telegram
 TELEGRAM_BOT_TOKEN = "TON_TELEGRAM_BOT_TOKEN"
 CHAT_ID = "TON_CHAT_ID"
 SEARCH_QUERY = "new crypto launch since:2024-01-01"
-CHECK_INTERVAL = 60  # Vérifier toutes les 60 secondes
+CHECK_INTERVAL = 300  # Vérifier toutes les 60 secondes
 
 bot = telegram.Bot(token=TELEGRAM_BOT_TOKEN)
 
