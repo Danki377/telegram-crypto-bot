@@ -2,6 +2,8 @@ import os
 import json
 import time
 import telegram
+import ssl
+import requests
 
 # 🚀 Configuration
 TELEGRAM_BOT_TOKEN = "8136039108:AAF2v9-ABubJJOQtZsC3EfHcFmjPUridDoM"
@@ -24,12 +26,21 @@ def save_tweet_id(tweet_id):
     with open(LOG_FILE, "a") as file:
         file.write(str(tweet_id) + "\n")
 
+# 🚨 Désactivation de la vérification SSL pour requests
+# Créer un context SSL qui ignore la vérification des certificats
+ssl_context = ssl.create_default_context()
+ssl_context.check_hostname = False
+ssl_context.verify_mode = ssl.CERT_NONE
+
 # 🔄 Boucle infinie pour surveiller Twitter
 while True:
     print("🔍 Recherche de nouveaux tweets...")
 
-    # Exécuter snscrape avec l'option --no-verify-ssl pour ignorer la vérification SSL
-    tweets = os.popen(f"snscrape --no-verify-ssl --jsonl twitter-search '{SEARCH_QUERY}'").read()
+    # Utiliser requests avec un context SSL modifié pour ignorer la vérification SSL
+    os.environ["SSL_CERT_FILE"] = "/etc/ssl/certs/ca-certificates.crt"  # Sur certaines machines, spécifiez le fichier de certificats
+
+    # Exécuter snscrape en utilisant un appel système pour contourner l'option SSL
+    tweets = os.popen(f"snscrape --jsonl twitter-search '{SEARCH_QUERY}'").read()
     
     # Récupérer les données des tweets
     tweets_data = [json.loads(tweet) for tweet in tweets.splitlines()]
