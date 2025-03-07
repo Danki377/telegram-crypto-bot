@@ -1,19 +1,17 @@
-import ssl
-import requests
-from urllib3.exceptions import InsecureRequestWarning
-import snscrape
-
-# Désactiver les avertissements de sécurité concernant SSL
-requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
-
-# Configurer SSL pour ignorer les erreurs de vérification de certificat
-ssl._create_default_https_context = ssl._create_unverified_context
 import os
 import json
 import time
+import ssl
+import requests
+from urllib3.exceptions import InsecureRequestWarning
 import telegram
-import logging
 from dotenv import load_dotenv
+
+# Désactiver les avertissements SSL
+requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
+
+# Ignorer la vérification des certificats SSL
+ssl._create_default_https_context = ssl._create_unverified_context
 
 # Charger les variables d'environnement depuis un fichier .env
 load_dotenv()
@@ -23,10 +21,6 @@ TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
 SEARCH_QUERY = "new crypto launch since:2025-01-01"
 CHECK_INTERVAL = 300  # Vérifier toutes les 300 secondes (5 minutes)
-
-# Configurez un logger pour plus de visibilité
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
-logger = logging.getLogger()
 
 # Initialiser le bot Telegram
 bot = telegram.Bot(token=TELEGRAM_BOT_TOKEN)
@@ -42,7 +36,7 @@ def is_already_sent(tweet_id):
         with open(LOG_FILE, "r") as file:
             return str(tweet_id) in file.read()
     except Exception as e:
-        logger.error(f"Erreur lors de la lecture du fichier de log: {e}")
+        print(f"Erreur lors de la lecture du fichier de log: {e}")
         return False
 
 def save_tweet_id(tweet_id):
@@ -51,12 +45,12 @@ def save_tweet_id(tweet_id):
         with open(LOG_FILE, "a") as file:
             file.write(str(tweet_id) + "\n")
     except Exception as e:
-        logger.error(f"Erreur lors de l'écriture dans le fichier de log: {e}")
+        print(f"Erreur lors de l'écriture dans le fichier de log: {e}")
 
 # 🔄 Boucle infinie pour surveiller Twitter
 while True:
     try:
-        logger.info("🔍 Recherche de nouveaux tweets...")
+        print("🔍 Recherche de nouveaux tweets...")
         
         # Exécuter snscrape et récupérer les résultats
         tweets = os.popen(f"snscrape --jsonl twitter-search '{SEARCH_QUERY}'").read()
@@ -76,14 +70,14 @@ while True:
                 try:
                     bot.send_message(chat_id=CHAT_ID, text=message)
                     save_tweet_id(tweet_id)
-                    logger.info(f"✅ Tweet envoyé : {tweet_link}")
+                    print(f"✅ Tweet envoyé : {tweet_link}")
                 except Exception as e:
-                    logger.error(f"Erreur lors de l'envoi du message Telegram: {e}")
+                    print(f"Erreur lors de l'envoi du message Telegram: {e}")
             else:
-                logger.info(f"Tweet déjà envoyé : {tweet_link}")
+                print(f"Tweet déjà envoyé : {tweet_link}")
 
-        logger.info("🕐 Attente avant la prochaine recherche...")
+        print("🕐 Attente avant la prochaine recherche...")
         time.sleep(CHECK_INTERVAL)  # Attendre avant de recommencer
     except Exception as e:
-        logger.error(f"Erreur dans le processus de scrapping ou d'envoi: {e}")
+        print(f"Erreur dans le processus de scrapping ou d'envoi: {e}")
         time.sleep(CHECK_INTERVAL)  # Attente avant la prochaine tentative en cas d'erreur
