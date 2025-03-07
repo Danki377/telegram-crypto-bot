@@ -4,8 +4,8 @@ import time
 import telegram
 
 # 🚀 Configuration
-TELEGRAM_BOT_TOKEN = "TON_TELEGRAM_BOT_TOKEN"
-CHAT_ID = "TON_CHAT_ID"
+TELEGRAM_BOT_TOKEN = "8136039108:AAF2v9-ABubJJOQtZsC3EfHcFmjPUridDoM"
+CHAT_ID = "5171530791"
 SEARCH_QUERY = "new crypto launch since:2025-01-01"
 CHECK_INTERVAL = 300  # Vérifier toutes les 60 secondes
 
