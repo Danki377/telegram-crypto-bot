@@ -1,3 +1,13 @@
+import ssl
+import requests
+from urllib3.exceptions import InsecureRequestWarning
+import snscrape
+
+# Désactiver les avertissements de sécurité concernant SSL
+requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
+
+# Configurer SSL pour ignorer les erreurs de vérification de certificat
+ssl._create_default_https_context = ssl._create_unverified_context
 import os
 import json
 import time
