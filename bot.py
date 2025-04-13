@@ -1,60 +1,58 @@
-import ssl
-import os
-import json
-import time
-import telegram
+import tweepy
 import requests
-import snscrape
+import os
+from dotenv import load_dotenv
+from time import sleep
 
-# Désactivation radicale de la vérification SSL
-ssl._create_default_https_context = ssl._create_unverified_context
+# Charge les clés depuis .env
+load_dotenv()
 
-# 🚀 Configuration
-TELEGRAM_BOT_TOKEN = "8136039108:AAF2v9-ABubJJOQtZsC3EfHcFmjPUridDoM"
-CHAT_ID = "5171530791"
-SEARCH_QUERY = "new crypto launch since:2025-01-01"
-CHECK_INTERVAL = 300  # Vérifier toutes les 300 secondes (5 minutes)
+# Config Twitter
+auth = tweepy.OAuth1UserHandler(
+consumer_key=os.getenv("TWITTER_API_KEY"),
+consumer_secret=os.getenv("TWITTER_API_SECRET"),
+access_token=os.getenv("TWITTER_ACCESS_TOKEN"),
+access_token_secret=os.getenv("TWITTER_ACCESS_SECRET")
+)
+twitter_api = tweepy.API(auth)
 
-bot = telegram.Bot(token=TELEGRAM_BOT_TOKEN)
+# Config Telegram
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
-# 📂 Fonction pour éviter les doublons
-LOG_FILE = "logs.txt"
+# Mots-clés à surveiller (personnalisez cette liste !)
+KEYWORDS = ["New coin launching $", "New Official meme launching", "Launching at", "Launching soon"]
 
-def is_already_sent(tweet_id):
-    if not os.path.exists(LOG_FILE):
-        return False
-    with open(LOG_FILE, "r") as file:
-        return str(tweet_id) in file.read()
+# Pour éviter les doublons
+seen_tweets = set()
 
-def save_tweet_id(tweet_id):
-    with open(LOG_FILE, "a") as file:
-        file.write(str(tweet_id) + "\n")
+def send_telegram_alert(tweet_text, author, tweet_url):
+"""Envoie une notification sur Telegram"""
+message = (
+f"🔔 **Nouveau Tweet**\n\n"
+f"📌 **Auteur**: @{author}\n"
+f"📝 **Contenu**: {tweet_text}\n\n"
+f"🔗 {tweet_url}"
+)
+requests.post(
+f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage",
+json={"chat_id": TELEGRAM_CHAT_ID, "text": message, "parse_mode": "Markdown"}
+)
 
-# 🔄 Boucle infinie pour surveiller Twitter
+def check_tweets():
+"""Vérifie les nouveaux tweets"""
+for keyword in KEYWORDS:
+tweets = twitter_api.search_tweets(q=keyword, count=5, tweet_mode="extended")
+for tweet in tweets:
+tweet_id = tweet.id_str
+if tweet_id not in seen_tweets:
+seen_tweets.add(tweet_id)
+tweet_url = f"https://twitter.com/{tweet.user.screen_name}/status/{tweet_id}"
+send_telegram_alert(tweet.full_text, tweet.user.screen_name, tweet_url)
+
+# Boucle principale
+if __name__ == "__main__":
+print("🤖 Bot en marche... (Ctrl+C pour arrêter)")
 while True:
-    print("🔍 Recherche de nouveaux tweets...")
-
-    try:
-        tweets = os.popen(f"snscrape --jsonl twitter-search '{SEARCH_QUERY}'").read()
-
-        # Récupérer les données des tweets
-        tweets_data = [json.loads(tweet) for tweet in tweets.splitlines()]
-
-        # Vérifier chaque tweet
-        for tweet in tweets_data:
-            tweet_id = tweet["id"]
-            tweet_text = tweet["content"]
-            tweet_link = f"https://twitter.com/{tweet['user']['username']}/status/{tweet_id}"
-
-            if not is_already_sent(tweet_id):
-                message = f"🚀 Nouvelle crypto détectée :\n{tweet_text}\n🔗 {tweet_link}"
-                bot.send_message(chat_id=CHAT_ID, text=message)
-                save_tweet_id(tweet_id)
-                print(f"✅ Tweet envoyé : {tweet_link}")
-
-        print("🕐 Attente avant la prochaine recherche...")
-        time.sleep(CHECK_INTERVAL)  # Attendre avant de recommencer
-
-    except Exception as e:
-        print(f"🚨 Erreur: {str(e)}")
-        time.sleep(60)  # Attendre avant de réessayer en cas d'erreur
+check_tweets()
+sleep(300) # Vérifie toutes les 5 minutes
