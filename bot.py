@@ -13,7 +13,7 @@ TELEGRAM_BOT_TOKEN = os.environ['TELEGRAM_BOT_TOKEN']
 TELEGRAM_CHAT_ID = os.environ['TELEGRAM_CHAT_ID']
 
 # Mots-clés à surveiller
-KEYWORDS = ["bon plan", "promo", "#crypto"]
+KEYWORDS = ["New coin launching $", "New Official meme launching", "Launching at", "Launching soon"]
 seen_tweets = set() # Anti-doublons
 
 def send_telegram_alert(text, author, url):
