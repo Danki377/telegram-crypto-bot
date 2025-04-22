@@ -4,50 +4,60 @@ import os
 from time import sleep
 from datetime import datetime
 
-# Configuration via variables d'environnement (Replit Secrets)
-TWITTER_API_KEY = os.environ['TWITTER_API_KEY']
-TWITTER_API_SECRET = os.environ['TWITTER_API_SECRET']
-TWITTER_ACCESS_TOKEN = os.environ['TWITTER_ACCESS_TOKEN']
-TWITTER_ACCESS_SECRET = os.environ['TWITTER_ACCESS_SECRET']
-TELEGRAM_BOT_TOKEN = os.environ['TELEGRAM_BOT_TOKEN']
-TELEGRAM_CHAT_ID = os.environ['TELEGRAM_CHAT_ID']
-
-# Mots-clés à surveiller
-KEYWORDS = ["New coin launching $", "New Official meme launching", "Launching at", "Launching soon"]
-seen_tweets = set() # Anti-doublons
-
-def send_telegram_alert(text, author, url):
-"""Envoi de la notification Telegram"""
-message = (
-f"🔔 **Nouveau Tweet**\n\n"
-f"👤 Auteur: @{author}\n"
-f"📝 Texte: {text}\n\n"
-f"🔗 {url}"
+# Configuration Twitter API v2
+client = tweepy.Client(
+    bearer_token=os.environ["TWITTER_BEARER_TOKEN"],
+    consumer_key=os.environ["TWITTER_API_KEY"],
+    consumer_secret=os.environ["TWITTER_API_SECRET"],
+    access_token=os.environ["TWITTER_ACCESS_TOKEN"],
+    access_token_secret=os.environ["TWITTER_ACCESS_SECRET"]
 )
-requests.post(
-f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage",
-json={"chat_id": TELEGRAM_CHAT_ID, "text": message, "parse_mode": "Markdown"}
-)
+
+# Configuration Telegram
+TELEGRAM_BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
+TELEGRAM_CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
+
+KEYWORDS = ["bon plan", "promo PS5", "#crypto"]
+seen_tweets = set()
+
+def send_telegram_alert(text: str, author: str, url: str):
+    """Envoie une notification Telegram formatée"""
+    message = (
+        f"🔔 **Nouveau Tweet**\n\n"
+        f"👤 Auteur: @{author}\n"
+        f"📝 Texte: {text}\n\n"
+        f"🔗 {url}"
+    )
+    requests.post(
+        f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage",
+        json={"chat_id": TELEGRAM_CHAT_ID, "text": message, "parse_mode": "Markdown"}
+    )
 
 def check_tweets():
-"""Vérification des nouveaux tweets"""
-auth = tweepy.OAuth1UserHandler(
-TWITTER_API_KEY, TWITTER_API_SECRET,
-TWITTER_ACCESS_TOKEN, TWITTER_ACCESS_SECRET
-)
-api = tweepy.API(auth)
-for keyword in KEYWORDS:
-tweets = api.search_tweets(q=keyword, count=5, tweet_mode="extended")
-for tweet in tweets:
-tweet_id = tweet.id_str
-if tweet_id not in seen_tweets:
-seen_tweets.add(tweet_id)
-tweet_url = f"https://twitter.com/{tweet.user.screen_name}/status/{tweet_id}"
-send_telegram_alert(tweet.full_text, tweet.user.screen_name, tweet_url)
+    """Recherche de tweets avec API v2"""
+    for keyword in KEYWORDS:
+        try:
+            response = client.search_recent_tweets(
+                query=keyword,
+                max_results=5,
+                tweet_fields=["author_id"],
+                user_fields=["username"],
+                expansions="author_id"
+            )
+            
+            if response.data:
+                users = {u.id: u.username for u in response.includes['users']}
+                for tweet in response.data:
+                    if tweet.id not in seen_tweets:
+                        seen_tweets.add(tweet.id)
+                        author = users[tweet.author_id]
+                        tweet_url = f"https://twitter.com/{author}/status/{tweet.id}"
+                        send_telegram_alert(tweet.text, author, tweet_url)
+        except Exception as e:
+            print(f"Erreur: {e}")
 
-# Boucle principale
 if __name__ == "__main__":
-print(f"{datetime.now()} → Bot démarré. Surveillance des mots-clés : {KEYWORDS}")
-while True:
-check_tweets()
-sleep(300) # Vérifie toutes les 5 minutes
+    print(f"[{datetime.now()}] → Démarrage du bot")
+    while True:
+        check_tweets()
+        sleep(300)  # 5 minutes
